@@ -1,0 +1,364 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, Button, Card, CardContent, Container, Grid, Typography, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, AppBar, Toolbar, Alert } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import API, { getGames, createGame, updateGame, deleteGame, logoutUser } from '../services/api';
+
+const statusColors = {
+  Backlog: 'default',
+  Playing: 'primary',
+  Completed: 'success',
+  Dropped: 'error',
+};
+
+export default function Dashboard() {
+  const [games, setGames] = useState([]);
+  const [genres, setGenres] = useState([]);
+  const [selectedGenreFilter, setSelectedGenreFilter] = useState('All');
+  const [error, setError] = useState('');
+  
+  // Modal & Form State
+  const [openModal, setOpenModal] = useState(false);
+  const [editingGameId, setEditingGameId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [genreId, setGenreId] = useState('');
+  const [status, setStatus] = useState('Backlog');
+  const [rating, setRating] = useState('');
+  const [hoursPlayed, setHoursPlayed] = useState('');
+
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user')) || { username: 'Gamer' };
+
+  const fetchData = async () => {
+    try {
+      const [gamesData, genresRes] = await Promise.all([
+        getGames(),
+        API.get('/genres')
+      ]);
+      setGames(gamesData);
+      setGenres(genresRes.data);
+    } catch (err) {
+      setError('Failed to fetch dashboard data. Please sign in again.');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [navigate]);
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate('/login');
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingGameId(null);
+    setTitle('');
+    setPlatform('');
+    setGenreId('');
+    setStatus('Backlog');
+    setRating('');
+    setHoursPlayed('');
+    setOpenModal(true);
+  };
+
+  const handleOpenEditModal = (game) => {
+    setEditingGameId(game.id);
+    setTitle(game.title);
+    setPlatform(game.platform || '');
+    setGenreId(game.genre_id || '');
+    setStatus(game.status);
+    setRating(game.rating || '');
+    setHoursPlayed(game.hours_played || 0);
+    setOpenModal(true);
+  };
+
+  const handleSubmitForm = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        title,
+        platform,
+        genre_id: genreId ? parseInt(genreId) : null,
+        status,
+        rating: rating ? parseInt(rating) : null,
+        hours_played: hoursPlayed ? parseFloat(hoursPlayed) : 0.0,
+      };
+
+      if (editingGameId) {
+        await updateGame(editingGameId, payload);
+      } else {
+        await createGame(payload);
+      }
+
+      setOpenModal(false);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save game entry.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteGame(id);
+      fetchData();
+    } catch (err) {
+      setError('Failed to delete game entry.');
+    }
+  };
+
+  // Filter games based on selected genre dropdown
+  const filteredGames = games.filter((game) => {
+    if (selectedGenreFilter === 'All') return true;
+    return game.genre_name === selectedGenreFilter;
+  });
+
+  // Calculate Stats Summary
+  const totalHours = games.reduce((acc, curr) => acc + (curr.hours_played || 0), 0);
+  const completedCount = games.filter((g) => g.status === 'Completed').length;
+
+  return (
+    <Box sx={{ flexGrow: 1, minHeight: '100vh', backgroundColor: 'background.default', pb: 6 }}>
+      {/* Top Navbar */}
+      <AppBar position="static" sx={{ backgroundColor: 'background.paper', borderBottom: '1px solid #222' }}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, color: 'primary.main' }}>
+            Completionist Hub — {user.username}'s Backlog
+          </Typography>
+          <Button 
+            variant="outlined" 
+            color="inherit" 
+            startIcon={<LogoutIcon />} 
+            onClick={handleLogout}
+            sx={{ borderColor: '#333', '&:hover': { borderColor: 'primary.main', backgroundColor: 'rgba(255,23,68,0.08)' } }}
+          >
+            Logout
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+        {/* User Stats Summary Bar */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ backgroundColor: 'background.paper', border: '1px solid #222' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <SportsEsportsIcon sx={{ color: 'primary.main', fontSize: 40 }} />
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Total Tracked</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>{games.length} Games</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ backgroundColor: 'background.paper', border: '1px solid #222' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 40 }} />
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Total Playtime</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>{totalHours.toFixed(1)} hrs</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ backgroundColor: 'background.paper', border: '1px solid #222' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Completed</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>{completedCount} Games</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Header Controls & Filter */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            Your Games ({filteredGames.length} of {games.length})
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              select
+              label="Filter by Genre"
+              value={selectedGenreFilter}
+              onChange={(e) => setSelectedGenreFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 200, backgroundColor: 'background.paper', borderRadius: 1 }}
+            >
+              <MenuItem value="All">All Genres</MenuItem>
+              {genres.map((g) => (
+                <MenuItem key={g.id} value={g.name}>{g.name}</MenuItem>
+              ))}
+            </TextField>
+
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddModal}
+              sx={{ backgroundColor: 'primary.main', '&:hover': { backgroundColor: 'secondary.main' }, height: 40 }}
+            >
+              Add Game
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Games Grid Layout */}
+        <Grid container spacing={3}>
+          {filteredGames.map((game) => (
+            <Grid item xs={12} sm={6} md={4} key={game.id}>
+              <Card sx={{ backgroundColor: 'background.paper', height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Typography variant="h6" component="h2" sx={{ fontWeight: 600, pr: 7 }}>
+                      {game.title}
+                    </Typography>
+                    <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
+                      <IconButton size="small" color="primary" onClick={() => handleOpenEditModal(game)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(game.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Platform: <strong>{game.platform || 'N/A'}</strong>
+                  </Typography>
+
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Genre: <strong>{game.genre_name}</strong>
+                  </Typography>
+
+                  <Box sx={{ mt: 2, mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip 
+                      label={game.status} 
+                      color={statusColors[game.status] || 'default'} 
+                      size="small" 
+                    />
+                    {game.rating && (
+                      <Chip 
+                        label={`Rating: ${game.rating}/5`} 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ borderColor: '#333' }}
+                      />
+                    )}
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary">
+                    Hours Played: {game.hours_played || 0} hrs
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+          {filteredGames.length === 0 && (
+            <Grid item xs={12}>
+              <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+                No games match this filter criteria.
+              </Typography>
+            </Grid>
+          )}
+        </Grid>
+      </Container>
+
+      {/* Add / Edit Game Modal */}
+      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: 'primary.main' }}>
+          {editingGameId ? 'Edit Game Entry' : 'Add New Game'}
+        </DialogTitle>
+        <Box component="form" onSubmit={handleSubmitForm}>
+          <DialogContent>
+            <TextField
+              margin="dense"
+              label="Game Title"
+              fullWidth
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Platform (e.g. PC, PS5, Switch)"
+              fullWidth
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              select
+              label="Genre"
+              fullWidth
+              value={genreId}
+              onChange={(e) => setGenreId(e.target.value)}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value=""><em>None</em></MenuItem>
+              {genres.map((g) => (
+                <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              margin="dense"
+              select
+              label="Status"
+              fullWidth
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="Backlog">Backlog</MenuItem>
+              <MenuItem value="Playing">Playing</MenuItem>
+              <MenuItem value="Completed">Completed</MenuItem>
+              <MenuItem value="Dropped">Dropped</MenuItem>
+            </TextField>
+            <TextField
+              margin="dense"
+              label="Rating (1-5)"
+              type="number"
+              fullWidth
+              inputProps={{ min: 1, max: 5 }}
+              value={rating}
+              onChange={(e) => setRating(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Hours Played"
+              type="number"
+              fullWidth
+              inputProps={{ step: 0.5, min: 0 }}
+              value={hoursPlayed}
+              onChange={(e) => setHoursPlayed(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setOpenModal(false)} color="inherit">Cancel</Button>
+            <Button type="submit" variant="contained" sx={{ backgroundColor: 'primary.main', '&:hover': { backgroundColor: 'secondary.main' } }}>
+              {editingGameId ? 'Save Changes' : 'Add to Backlog'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+    </Box>
+  );
+}

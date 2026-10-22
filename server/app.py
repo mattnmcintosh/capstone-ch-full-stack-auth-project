@@ -47,22 +47,45 @@ class GameEntry(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    title = db.Column(db.String(150), nullable=False)
+    genre_id = db.Column(db.Integer, db.ForeignKey('genres.id'), nullable=True) # Added foreign key
+    title = db.Column(db.String(100), nullable=False)
     platform = db.Column(db.String(50), nullable=True)
-    status = db.Column(db.String(30), default='Backlog')  # Backlog, Playing, Completed, Dropped
-    rating = db.Column(db.Integer, nullable=True)         # 1-5 stars
-    hours_played = db.Column(db.Float, default=0.0)
+    status = db.Column(db.String(20), default='Backlog', nullable=False)
+    rating = db.Column(db.Integer, nullable=True)
+    hours_played = db.Column(db.Float, default=0.0, nullable=True)
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "title": self.title,
-            "platform": self.platform,
-            "status": self.status,
-            "rating": self.rating,
-            "hours_played": self.hours_played
+            'id': self.id,
+            'user_id': self.user_id,
+            'genre_id': self.genre_id,
+            'genre_name': self.genre.name if self.genre else 'Uncategorized',
+            'title': self.title,
+            'platform': self.platform,
+            'status': self.status,
+            'rating': self.rating,
+            'hours_played': self.hours_played
         }
+
+class Genre(db.Model):
+    __tablename__ = 'genres'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Relationship to games
+    games = db.relationship('GameEntry', backref='genre', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name
+        }
+
+game_genres = db.Table('game_genres',
+    db.Column('game_id', db.Integer, db.ForeignKey('game_entries.id'), primary_key=True),
+    db.Column('genre_id', db.Integer, db.ForeignKey('genres.id'), primary_key=True)
+)
 
 
 @app.route('/api/register', methods=['POST'])
@@ -135,19 +158,27 @@ def create_game():
 @app.route('/api/games/<int:id>', methods=['PATCH'])
 @jwt_required()
 def update_game(id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     game = GameEntry.query.filter_by(id=id, user_id=current_user_id).first()
-
+    
     if not game:
-        return jsonify({"error": "Game entry not found"}), 404
-
+        return jsonify({"message": "Game entry not found"}), 404
+        
     data = request.get_json()
-    game.title = data.get('title', game.title)
-    game.platform = data.get('platform', game.platform)
-    game.status = data.get('status', game.status)
-    game.rating = data.get('rating', game.rating)
-    game.hours_played = data.get('hours_played', game.hours_played)
-
+    
+    if 'title' in data:
+        game.title = data['title']
+    if 'platform' in data:
+        game.platform = data['platform']
+    if 'genre_id' in data:
+        game.genre_id = data['genre_id']
+    if 'status' in data:
+        game.status = data['status']
+    if 'rating' in data:
+        game.rating = data['rating']
+    if 'hours_played' in data:
+        game.hours_played = data['hours_played']
+        
     db.session.commit()
     return jsonify(game.to_dict()), 200
 
@@ -163,6 +194,12 @@ def delete_game(id):
     db.session.delete(game)
     db.session.commit()
     return jsonify({"message": "Game entry deleted successfully"}), 200
+
+@app.route('/api/genres', methods=['GET'])
+@jwt_required()
+def get_genres():
+    genres = Genre.query.all()
+    return jsonify([g.to_dict() for g in genres]), 200
 
 # --- HEALTH CHECK ---
 
