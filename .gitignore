@@ -91,3 +91,6 @@ Thumbs.db
 *.sln
 *.swp
 *.swo
+
+# Custom
+server/migrations/versions/b2cb608f4688_add_genre_model_and_relationship.py
