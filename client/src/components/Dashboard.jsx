@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Card, CardContent, Container, Grid, Typography, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, AppBar, Toolbar, Alert } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [games, setGames] = useState([]);
   const [genres, setGenres] = useState([]);
   const [selectedGenreFilter, setSelectedGenreFilter] = useState('All');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
   const [error, setError] = useState('');
   
   // Modal & Form State
@@ -118,8 +119,9 @@ export default function Dashboard() {
 
   // Filter games based on selected genre dropdown
   const filteredGames = games.filter((game) => {
-    if (selectedGenreFilter === 'All') return true;
-    return game.genre_name === selectedGenreFilter;
+    const matchesGenre = selectedGenreFilter === 'All' || game.genre_name === selectedGenreFilter;
+    const matchesStatus = selectedStatusFilter === 'All' || game.status === selectedStatusFilter;
+    return matchesGenre && matchesStatus;
   });
 
   // Calculate Stats Summary
@@ -186,20 +188,35 @@ export default function Dashboard() {
           </Grid>
         </Grid>
 
-        {/* Header Controls & Filter */}
+        {/* Header Controls & Filters */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
             Your Games ({filteredGames.length} of {games.length})
           </Typography>
 
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              select
+              label="Filter by Status"
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 160, backgroundColor: 'background.paper', borderRadius: 1 }}
+            >
+              <MenuItem value="All">All Statuses</MenuItem>
+              <MenuItem value="Backlog">Backlog</MenuItem>
+              <MenuItem value="Playing">Playing</MenuItem>
+              <MenuItem value="Completed">Completed</MenuItem>
+              <MenuItem value="Dropped">Dropped</MenuItem>
+            </TextField>
+
             <TextField
               select
               label="Filter by Genre"
               value={selectedGenreFilter}
               onChange={(e) => setSelectedGenreFilter(e.target.value)}
               size="small"
-              sx={{ minWidth: 200, backgroundColor: 'background.paper', borderRadius: 1 }}
+              sx={{ minWidth: 180, backgroundColor: 'background.paper', borderRadius: 1 }}
             >
               <MenuItem value="All">All Genres</MenuItem>
               {genres.map((g) => (

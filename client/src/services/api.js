@@ -1,48 +1,36 @@
 import axios from 'axios';
 
-// Create an Axios instance configured for your Flask backend
 const API = axios.create({
-  baseURL: 'http://localhost:5555/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5555/api',
 });
 
-// Request interceptor to automatically attach the JWT token if available
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Automatically attach JWT token to every request if available
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Auth Services
-export const registerUser = async (credentials) => {
-  const response = await API.post('/register', credentials);
+// Helper auth services
+export const loginUser = async (credentials) => {
+  const response = await API.post('/login', credentials);
+  localStorage.setItem('token', response.data.access_token);
+  localStorage.setItem('user', JSON.stringify(response.data.user));
   return response.data;
 };
 
-export const loginUser = async (credentials) => {
-  const response = await API.post('/login', credentials);
-  if (response.data.access_token) {
-    localStorage.setItem('access_token', response.data.access_token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-  }
+export const registerUser = async (userData) => {
+  const response = await API.post('/users', userData);
   return response.data;
 };
 
 export const logoutUser = () => {
-  localStorage.removeItem('access_token');
+  localStorage.removeItem('token');
   localStorage.removeItem('user');
 };
 
-// Game CRUD Services
 export const getGames = async () => {
   const response = await API.get('/games');
   return response.data;
