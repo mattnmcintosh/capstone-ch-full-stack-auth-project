@@ -111,26 +111,23 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-
-    user = User.query.filter_by(username=username).first()
-
-    if not user or not check_password_hash(user.password_hash, password):
-        return jsonify({"error": "Invalid username or password"}), 401
-
-    access_token = create_access_token(identity=user.id)
-    return jsonify({
-        "access_token": access_token,
-        "user": user.to_dict()
-    }), 200
+    user = User.query.filter_by(username=data.get('username')).first()
+    
+    if user and check_password_hash(user.password_hash, data.get('password')):
+        access_token = create_access_token(identity=str(user.id))
+        return jsonify({
+            "access_token": access_token,
+            "user": {"id": user.id, "username": user.username}
+        }), 200
+        
+    return jsonify({"message": "Invalid username or password"}), 401
 
 @app.route('/api/games', methods=['GET'])
 @jwt_required()
 def get_games():
-    current_user_id = get_jwt_identity()
-    user_games = GameEntry.query.filter_by(user_id=current_user_id).all()
-    return jsonify([game.to_dict() for game in user_games]), 200
+    current_user_id = int(get_jwt_identity())
+    games = GameEntry.query.filter_by(user_id=current_user_id).all()
+    return jsonify([g.to_dict() for g in games]), 200
 
 @app.route('/api/games', methods=['POST'])
 @jwt_required()
@@ -201,7 +198,7 @@ def get_genres():
     genres = Genre.query.all()
     return jsonify([g.to_dict() for g in genres]), 200
 
-# --- HEALTH CHECK ---
+# HEALTH CHECK
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
