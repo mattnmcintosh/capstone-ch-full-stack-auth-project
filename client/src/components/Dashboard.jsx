@@ -371,7 +371,7 @@ export default function Dashboard() {
           <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setOpenModal(false)} color="inherit">Cancel</Button>
             <Button type="submit" variant="contained" sx={{ backgroundColor: 'primary.main', '&:hover': { backgroundColor: 'secondary.main' } }}>
-              {editingGameId ? 'Save Changes' : 'Add to Backlog'}
+              {editingGameId ? 'Save Changes' : 'Add to Library'}
             </Button>
           </DialogActions>
         </Box>

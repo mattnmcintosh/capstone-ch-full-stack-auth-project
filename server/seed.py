@@ -1,105 +1,128 @@
-import os
-from dotenv import load_dotenv
-from app import app, db, User, Genre, GameEntry
-from werkzeug.security import generate_password_hash
+from app import app
+from extensions import db
+from models import User, Genre, GameEntry
 
-load_dotenv()
+def seed_database():
+    with app.app_context():
+        print("🌱 Starting database seeding...")
 
-with app.app_context():
-    print("Deleting existing data...")
-    GameEntry.query.delete()
-    Genre.query.delete()
-    User.query.delete()
+        print("🔨 Creating database tables...")
+        db.create_all()
 
-    print("Creating seed users...")
-    user1 = User(
-        username="gamer_matt",
-        password_hash=generate_password_hash("password123")
-    )
-    user2 = User(
-        username="completionist_pro",
-        password_hash=generate_password_hash("securepass456")
-    )
+        print("🧹 Deleting existing data...")
+        GameEntry.query.delete()
+        Genre.query.delete()
+        User.query.delete()
+        db.session.commit()
 
-    db.session.add_all([user1, user2])
-    db.session.commit()
+        print("👤 Creating seed users...")
+        user1 = User(username="gamer_matt")
+        user1.set_password("password123")
+        
+        user2 = User(username="completionist_pro")
+        user2.set_password("password123")
 
-    print("Creating comprehensive seed genres...")
-    genres_data = [
-        "Action",
-        "Action-Adventure",
-        "RPG",
-        "Strategy",
-        "Simulation",
-        "Sports & Racing",
-        "Puzzle",
-        "Platformer",
-        "Fighting",
-        "Horror",
-        "Roguelike / Metroidvania",
-        "Visual Novel / Indie"
-    ]
-    
-    genre_objects = {}
-    for name in genres_data:
-        g = Genre(name=name)
-        db.session.add(g)
-        genre_objects[name] = g
-    
-    db.session.commit()
+        db.session.add_all([user1, user2])
+        db.session.commit()
 
-    print("Creating classic game entries across all genres for both test users...")
-    games = [
-        # Action
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Action"].id, title="Doom (1993)", platform="PC", status="Completed", rating=5, hours_played=25.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Action"].id, title="Devil May Cry 5", platform="PC", status="Playing", rating=5, hours_played=40.0),
+        print("📚 Creating genres...")
+        genres_data = [
+            "RPG",
+            "Action-Adventure",
+            "Platformer",
+            "Strategy",
+            "Survival Horror",
+            "Puzzle"
+        ]
         
-        # Action-Adventure
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Action-Adventure"].id, title="The Legend of Zelda: Ocarina of Time", platform="Switch", status="Completed", rating=5, hours_played=50.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Action-Adventure"].id, title="Grand Theft Auto V", platform="PC", status="Completed", rating=5, hours_played=120.0),
-        
-        # RPG
-        GameEntry(user_id=user1.id, genre_id=genre_objects["RPG"].id, title="Chrono Trigger", platform="PC", status="Completed", rating=5, hours_played=30.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["RPG"].id, title="Baldur's Gate 3", platform="PS5", status="Playing", rating=5, hours_played=115.0),
-        
-        # Strategy
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Strategy"].id, title="Civilization VI", platform="PC", status="Playing", rating=4, hours_played=150.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Strategy"].id, title="Age of Empires II", platform="PC", status="Completed", rating=5, hours_played=90.0),
-        
-        # Simulation
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Simulation"].id, title="The Sims 4", platform="PC", status="Backlog", rating=3, hours_played=15.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Simulation"].id, title="Cities: Skylines", platform="PC", status="Completed", rating=4, hours_played=75.0),
-        
-        # Sports & Racing
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Sports & Racing"].id, title="Rocket League", platform="PC", status="Playing", rating=5, hours_played=300.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Sports & Racing"].id, title="Forza Horizon 5", platform="PC", status="Completed", rating=5, hours_played=65.0),
-        
-        # Puzzle
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Puzzle"].id, title="Tetris Effect", platform="PC", status="Completed", rating=5, hours_played=20.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Puzzle"].id, title="Portal 2", platform="PC", status="Completed", rating=5, hours_played=12.0),
-        
-        # Platformer
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Platformer"].id, title="Super Mario World", platform="Switch", status="Completed", rating=5, hours_played=10.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Platformer"].id, title="Celeste", platform="PC", status="Completed", rating=5, hours_played=25.0),
-        
-        # Fighting
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Fighting"].id, title="Street Fighter II", platform="Switch", status="Completed", rating=4, hours_played=18.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Fighting"].id, title="Super Smash Bros. Ultimate", platform="Switch", status="Playing", rating=5, hours_played=200.0),
-        
-        # Horror
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Horror"].id, title="Resident Evil 2 (Remake)", platform="PC", status="Completed", rating=5, hours_played=22.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Horror"].id, title="Silent Hill 2", platform="PC", status="Completed", rating=5, hours_played=15.0),
-        
-        # Roguelike / Metroidvania
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Roguelike / Metroidvania"].id, title="Castlevania: Symphony of the Night", platform="PS", status="Completed", rating=5, hours_played=35.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Roguelike / Metroidvania"].id, title="Hades", platform="PC", status="Completed", rating=5, hours_played=60.0),
-        
-        # Visual Novel / Indie
-        GameEntry(user_id=user1.id, genre_id=genre_objects["Visual Novel / Indie"].id, title="Undertale", platform="PC", status="Completed", rating=5, hours_played=10.0),
-        GameEntry(user_id=user2.id, genre_id=genre_objects["Visual Novel / Indie"].id, title="Disco Elysium", platform="PC", status="Completed", rating=5, hours_played=45.0)
-    ]
+        genres = {name: Genre(name=name) for name in genres_data}
+        db.session.add_all(genres.values())
+        db.session.commit()
 
-    db.session.add_all(games)
-    db.session.commit()
+        print("🎮 Creating game entries across genres and statuses...")
+        
+        # Comprehensive dataset covering all genres and status permutations
+        sample_games = [
+            {
+                "title": "Castlevania: Symphony of the Night",
+                "platform": "PlayStation",
+                "status": "Completed",
+                "rating": 5,
+                "hours_played": 20.0,
+                "genre": "Platformer"
+            },
+            {
+                "title": "Shin Megami Tensei V",
+                "platform": "Nintendo Switch",
+                "status": "Playing",
+                "rating": 4,
+                "hours_played": 35.5,
+                "genre": "RPG"
+            },
+            {
+                "title": "The Witcher 3: Wild Hunt",
+                "platform": "PC",
+                "status": "Backlog",
+                "rating": None,
+                "hours_played": 0.0,
+                "genre": "RPG"
+            },
+            {
+                "title": "Portal 2",
+                "platform": "PC",
+                "status": "Completed",
+                "rating": 5,
+                "hours_played": 12.0,
+                "genre": "Puzzle"
+            },
+            {
+                "title": "Civilization VI",
+                "platform": "PC",
+                "status": "Playing",
+                "rating": 4,
+                "hours_played": 85.0,
+                "genre": "Strategy"
+            },
+            {
+                "title": "Silent Hill 2",
+                "platform": "PlayStation 2",
+                "status": "Completed",
+                "rating": 5,
+                "hours_played": 9.5,
+                "genre": "Survival Horror"
+            },
+            {
+                "title": "Metroid Dread",
+                "platform": "Nintendo Switch",
+                "status": "Dropped",
+                "rating": 3,
+                "hours_played": 4.0,
+                "genre": "Platformer"
+            },
+            {
+                "title": "Hades",
+                "platform": "PC",
+                "status": "Completed",
+                "rating": 5,
+                "hours_played": 50.0,
+                "genre": "Action-Adventure"
+            }
+        ]
 
-    print("Database successfully seeded with users, all genres, and iconic classic games!")
+        for data in sample_games:
+            game = GameEntry(
+                title=data["title"],
+                platform=data["platform"],
+                status=data["status"],
+                rating=data["rating"],
+                hours_played=data["hours_played"],
+                user_id=user1.id,
+                genre_id=genres[data["genre"]].id
+            )
+            db.session.add(game)
+
+        db.session.commit()
+        print("🚀 Database seeded successfully with full genre & status variety!")
+
+if __name__ == "__main__":
+    seed_database()
