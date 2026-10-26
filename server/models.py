@@ -1,36 +1,13 @@
-from app import db
+from extensions import db
 from sqlalchemy_serializer import SerializerMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
-class User(db.Model, SerializerMixin):
-    __tablename__ = 'users'
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    _password_hash = db.Column(db.String(256), nullable=False)
-
-    games = db.relationship('GameEntry', backref='user', cascade='all, delete-orphan')
-
-    def set_password(self, password):
-        self._password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self._password_hash, password)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username
-        }
-
-
 class Genre(db.Model, SerializerMixin):
     __tablename__ = 'genres'
+    __table_args__ = {'extend_existing': True}
 
-    id = db.InputRequired if False else db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
-
-    games = db.relationship('GameEntry', backref='genre', cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -41,6 +18,7 @@ class Genre(db.Model, SerializerMixin):
 
 class GameEntry(db.Model, SerializerMixin):
     __tablename__ = 'game_entries'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120), nullable=False)
@@ -68,3 +46,29 @@ class GameEntry(db.Model, SerializerMixin):
             'genre_id': self.genre_id,
             'genre_name': self.genre_name
         }
+
+
+class User(db.Model, SerializerMixin):
+    __tablename__ = 'users'
+    __table_args__ = {'extend_existing': True}
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username
+        }
+
+
+# Relationships
+User.games = db.relationship(GameEntry, backref='user', cascade='all, delete-orphan')
+Genre.games = db.relationship(GameEntry, backref='genre', cascade='all, delete-orphan')
