@@ -87,7 +87,8 @@ def create_game():
         status=data.get('status', 'Backlog'),
         rating=data.get('rating'),
         hours_played=data.get('hours_played', 0.0),
-        genre_id=data.get('genre_id')
+        genre_id=data.get('genre_id'),
+        notes=data.get('notes')
     )
 
     db.session.add(new_game)
@@ -101,25 +102,20 @@ def create_game():
 def update_game(id):
     current_user_id = int(get_jwt_identity())
     game = GameEntry.query.filter_by(id=id, user_id=current_user_id).first()
-    
+
     if not game:
-        return jsonify({"message": "Game entry not found"}), 404
-        
+        return jsonify({"error": "Game not found"}), 404
+
     data = request.get_json()
     
-    if 'title' in data:
-        game.title = data['title']
-    if 'platform' in data:
-        game.platform = data['platform']
-    if 'genre_id' in data:
-        game.genre_id = data['genre_id']
-    if 'status' in data:
-        game.status = data['status']
-    if 'rating' in data:
-        game.rating = data['rating']
-    if 'hours_played' in data:
-        game.hours_played = data['hours_played']
-        
+    if 'title' in data: game.title = data['title']
+    if 'platform' in data: game.platform = data['platform']
+    if 'status' in data: game.status = data['status']
+    if 'rating' in data: game.rating = data['rating']
+    if 'hours_played' in data: game.hours_played = data['hours_played']
+    if 'genre_id' in data: game.genre_id = data['genre_id']
+    if 'notes' in data: game.notes = data['notes']
+
     db.session.commit()
     return jsonify(game.to_dict()), 200
 
