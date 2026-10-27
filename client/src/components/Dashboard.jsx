@@ -166,6 +166,37 @@ export default function Dashboard() {
     return 0;
   });
 
+  const handleExportCSV = () => {
+  if (games.length === 0) return;
+
+  // Define CSV headers
+  const headers = ["Title", "Platform", "Genre", "Status", "Rating", "Hours Played", "Notes"];
+  
+  // Map games to CSV row arrays
+  const rows = games.map(game => [
+    `"${(game.title || '').replace(/"/g, '""')}"`,
+    `"${(game.platform || '').replace(/"/g, '""')}"`,
+    `"${(game.genre_name || '').replace(/"/g, '""')}"`,
+    `"${(game.status || '').replace(/"/g, '""')}"`,
+    game.rating || '',
+    game.hours_played || 0,
+    `"${(game.notes || '').replace(/"/g, '""')}"`
+  ]);
+
+  // Combine headers and rows into a single CSV string
+  const csvContent = "data:text/csv;charset=utf-8," + 
+    [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+  // Create a temporary anchor element to trigger the download
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "completionist_hub_library.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
   // Calculate Stats Summary & Completion Percentage
 const totalHours = games.reduce((acc, curr) => acc + (curr.hours_played || 0), 0);
 const completedCount = games.filter((g) => g.status === 'Completed').length;
@@ -311,6 +342,18 @@ const completionPercentage = games.length > 0 ? Math.round((completedCount / gam
               sx={{ backgroundColor: 'primary.main', '&:hover': { backgroundColor: 'secondary.main' }, height: 40 }}
             >
               Add Game
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleExportCSV}
+              sx={{ 
+                borderColor: '#333', 
+                color: 'text.secondary',
+                height: 40,
+                '&:hover': { borderColor: 'primary.main', color: 'primary.main', backgroundColor: 'rgba(118,255,3,0.08)' } 
+              }}
+            >
+              Export CSV
             </Button>
           </Box>
         </Box>
