@@ -7,10 +7,14 @@
 ## ✨ Key Features
 
 * **Secure Authentication:** JWT-based user registration and login with protected API routes and isolated user data.
-* **Comprehensive Backlog Management:** Full CRUD operations (Create, Read, Update, Delete) for tracking game titles, platforms, play status, ratings, and hours played.
-* **Dual Filtering System:** Instantly filter your backlog by **Status** (*Backlog*, *Playing*, *Completed*, *Dropped*) and **Genre** (*RPG*, *Action-Adventure*, *Roguelike*, etc.).
-* **Live Statistics Summary:** Real-time metrics tracking total games tracked, total playtime hours, and completed game counts.
-* **Custom Dark Theme:** A sleek, gamer-focused "Black and Red" UI built using **Material-UI (MUI)**.
+* **Comprehensive Backlog Management:** Full CRUD operations (Create, Read, Update, Delete) for tracking game titles, platforms, play status, ratings, hours played, and personal notes.
+* **Real-Time Title Search & Filters:** Instantly search by title and filter your backlog by Status (Backlog, Playing, Completed, Dropped) and Genre (RPG, Action-Adventure, Roguelike, etc.).
+* **Quick Status Cycling:** Clickable status chips on game cards that instantly cycle status without opening a modal.
+* **Advanced Sorting:** Sort libraries by Title (A-Z), Playtime (High to Low), or Rating (High to Low) with intelligent tiebreakers.
+* **Personal Notes & Mini-Reviews:** Jot down boss strategies, progress thoughts, or mini-reviews for each game entry.
+* **Visual Progress Tracking:** Real-time stats summary paired with a dynamic completion percentage progress bar.
+* **CSV Library Export:** One-click export to download your entire game library as a spreadsheet.
+* **Custom Dark Theme:** A sleek, gamer-focused UI built using Material-UI (MUI).
 
 ---
 
@@ -21,7 +25,8 @@
 * **Flask-SQLAlchemy** (ORM & Database Management)
 * **Flask-JWT-Extended** (Token-based Authentication)
 * **Flask-Migrate** (Database Migrations)
-* **SQLite / PostgreSQL**
+* **PostgreSQL & psycopg2**
+* **Werkzeug Security (Password Hashing)**
 
 ### **Frontend**
 * **React 18+** (Single-Page Application)
@@ -36,7 +41,7 @@
 The application utilizes a robust relational database schema consisting of three primary models:
 1. **`User`**: Manages credentials and links securely to user-owned records.
 2. **`Genre`**: Categorizes game entries (seeded with 12 industry-standard genres).
-3. **`GameEntry`**: The core resource linked via a One-to-Many relationship to both `User` and `Genre`.
+3. **`GameEntry`**: The core resource linked via a One-to-Many relationship to both User and Genre, including support for personal notes and hours tracking.
 
 ---
 
@@ -45,7 +50,7 @@ The application utilizes a robust relational database schema consisting of three
 ### Prerequisites
 * Python (3.8+)
 * Node.js & npm
-* Git
+* PostgreSQL & Git
 
 ### 1. Clone the Repository
 ```bash
@@ -96,7 +101,7 @@ npm run dev
 
 | Method | Endpoint | Description | Protected |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/users` | Register a new user | No |
+| **POST** | `/api/register` | Register a new user | No |
 | **POST** | `/api/login` | Authenticate user and return JWT | No |
 | **GET** | `/api/games` | Retrieve all games for logged-in user | Yes |
 | **POST** | `/api/games` | Create a new game entry | Yes |

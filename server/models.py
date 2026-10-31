@@ -26,6 +26,7 @@ class GameEntry(db.Model, SerializerMixin):
     status = db.Column(db.String(30), nullable=False, default='Backlog')
     rating = db.Column(db.Integer, nullable=True)
     hours_played = db.Column(db.Float, nullable=True, default=0.0)
+    notes = db.Column(db.Text, nullable=True) # <--- New Notes Column
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     genre_id = db.Column(db.Integer, db.ForeignKey('genres.id'), nullable=True)
@@ -42,6 +43,7 @@ class GameEntry(db.Model, SerializerMixin):
             'status': self.status,
             'rating': self.rating,
             'hours_played': self.hours_played,
+            'notes': self.notes, # <--- Included in serialization
             'user_id': self.user_id,
             'genre_id': self.genre_id,
             'genre_name': self.genre_name

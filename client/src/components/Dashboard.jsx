@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Card, CardContent, Container, Grid, Typography, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, AppBar, Toolbar, Alert } from '@mui/material';
+import { Box, Button, Card, CardContent, Container, Grid, Typography, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, AppBar, Toolbar, Alert, LinearProgress } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
@@ -19,9 +19,12 @@ const statusColors = {
 export default function Dashboard() {
   const [games, setGames] = useState([]);
   const [genres, setGenres] = useState([]);
+
+  // Filter & Sort states
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenreFilter, setSelectedGenreFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
-  const [error, setError] = useState('');
+  const [sortBy, setSortBy] = useState('title_asc');
   
   // Modal & Form State
   const [openModal, setOpenModal] = useState(false);
@@ -32,6 +35,10 @@ export default function Dashboard() {
   const [status, setStatus] = useState('Backlog');
   const [rating, setRating] = useState('');
   const [hoursPlayed, setHoursPlayed] = useState('');
+  const [notes, setNotes] = useState('');
+
+  // Error state
+  const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || { username: 'Gamer' };
@@ -69,6 +76,7 @@ export default function Dashboard() {
     setStatus('Backlog');
     setRating('');
     setHoursPlayed('');
+    setNotes('');
     setOpenModal(true);
   };
 
@@ -80,6 +88,7 @@ export default function Dashboard() {
     setStatus(game.status);
     setRating(game.rating || '');
     setHoursPlayed(game.hours_played || 0);
+    setNotes(game.notes || '');
     setOpenModal(true);
   };
 
@@ -93,6 +102,7 @@ export default function Dashboard() {
         status,
         rating: rating ? parseInt(rating) : null,
         hours_played: hoursPlayed ? parseFloat(hoursPlayed) : 0.0,
+        notes,
       };
 
       if (editingGameId) {
@@ -117,16 +127,80 @@ export default function Dashboard() {
     }
   };
 
-  // Filter games based on selected genre dropdown
+    const handleQuickStatusCycle = async (game) => {
+    const statuses = ['Backlog', 'Playing', 'Completed', 'Dropped'];
+    const currentIndex = statuses.indexOf(game.status);
+    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+
+    try {
+      await updateGame(game.id, { status: nextStatus });
+      fetchData(); // Refresh list immediately
+    } catch (err) {
+      setError('Failed to update game status.');
+    }
+  };
+
+  // Filter games based on search, genre, and status
   const filteredGames = games.filter((game) => {
     const matchesGenre = selectedGenreFilter === 'All' || game.genre_name === selectedGenreFilter;
     const matchesStatus = selectedStatusFilter === 'All' || game.status === selectedStatusFilter;
-    return matchesGenre && matchesStatus;
+    const matchesTitle = game.title.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesGenre && matchesStatus && matchesTitle;
   });
 
-  // Calculate Stats Summary
-  const totalHours = games.reduce((acc, curr) => acc + (curr.hours_played || 0), 0);
-  const completedCount = games.filter((g) => g.status === 'Completed').length;
+  // Sort the filtered games with tiebreaker support
+  const sortedAndFilteredGames = [...filteredGames].sort((a, b) => {
+    if (sortBy === 'title_asc') {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === 'hours_desc') {
+      return (b.hours_played || 0) - (a.hours_played || 0);
+    } else if (sortBy === 'rating_desc') {
+      const ratingDiff = (b.rating || 0) - (a.rating || 0);
+      if (ratingDiff !== 0) {
+        return ratingDiff;
+      }
+      // Tiebreaker: Decreasing hours played
+      return (b.hours_played || 0) - (a.hours_played || 0);
+    }
+    return 0;
+  });
+
+  const handleExportCSV = () => {
+  if (games.length === 0) return;
+
+  // Define CSV headers
+  const headers = ["Title", "Platform", "Genre", "Status", "Rating", "Hours Played", "Notes"];
+  
+  // Map games to CSV row arrays
+  const rows = games.map(game => [
+    `"${(game.title || '').replace(/"/g, '""')}"`,
+    `"${(game.platform || '').replace(/"/g, '""')}"`,
+    `"${(game.genre_name || '').replace(/"/g, '""')}"`,
+    `"${(game.status || '').replace(/"/g, '""')}"`,
+    game.rating || '',
+    game.hours_played || 0,
+    `"${(game.notes || '').replace(/"/g, '""')}"`
+  ]);
+
+  // Combine headers and rows into a single CSV string
+  const csvContent = "data:text/csv;charset=utf-8," + 
+    [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+  // Create a temporary anchor element to trigger the download
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "completionist_hub_library.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+  // Calculate Stats Summary & Completion Percentage
+const totalHours = games.reduce((acc, curr) => acc + (curr.hours_played || 0), 0);
+const completedCount = games.filter((g) => g.status === 'Completed').length;
+const completionPercentage = games.length > 0 ? Math.round((completedCount / games.length) * 100) : 0;
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: '100vh', backgroundColor: 'background.default', pb: 6 }}>
@@ -188,6 +262,22 @@ export default function Dashboard() {
           </Grid>
         </Grid>
 
+            <Card sx={{ backgroundColor: 'background.paper', border: '1px solid #222', mb: 4, p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  Backlog Completion Progress
+                </Typography>
+                <Typography variant="body2" color="primary.main" sx={{ fontWeight: 700 }}>
+                  {completionPercentage}% ({completedCount} of {games.length} completed)
+                </Typography>
+              </Box>
+              <LinearProgress 
+                variant="determinate" 
+                value={completionPercentage} 
+                sx={{ height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.08)' }} 
+              />
+            </Card>
+
         {/* Header Controls & Filters */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
@@ -195,6 +285,27 @@ export default function Dashboard() {
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+                select
+                label="Sort By"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                size="small"
+                sx={{ minWidth: 160, backgroundColor: 'background.paper', borderRadius: 1 }}
+              >
+                <MenuItem value="title_asc">Title (A-Z)</MenuItem>
+                <MenuItem value="hours_desc">Playtime (High to Low)</MenuItem>
+                <MenuItem value="rating_desc">Rating (High to Low)</MenuItem>
+              </TextField>
+            {/* Title Search Filter */}
+            <TextField
+              label="Search by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
+              sx={{ minWidth: 200, backgroundColor: 'background.paper', borderRadius: 1 }}
+            />
+
             <TextField
               select
               label="Filter by Status"
@@ -232,12 +343,24 @@ export default function Dashboard() {
             >
               Add Game
             </Button>
+            <Button
+              variant="outlined"
+              onClick={handleExportCSV}
+              sx={{ 
+                borderColor: '#333', 
+                color: 'text.secondary',
+                height: 40,
+                '&:hover': { borderColor: 'primary.main', color: 'primary.main', backgroundColor: 'rgba(118,255,3,0.08)' } 
+              }}
+            >
+              Export CSV
+            </Button>
           </Box>
         </Box>
 
         {/* Games Grid Layout */}
         <Grid container spacing={3}>
-          {filteredGames.map((game) => (
+          {sortedAndFilteredGames.map((game) => (
             <Grid item xs={12} sm={6} md={4} key={game.id}>
               <Card sx={{ backgroundColor: 'background.paper', height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
@@ -265,23 +388,31 @@ export default function Dashboard() {
 
                   <Box sx={{ mt: 2, mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Chip 
-                      label={game.status} 
-                      color={statusColors[game.status] || 'default'} 
-                      size="small" 
-                    />
-                    {game.rating && (
-                      <Chip 
-                        label={`Rating: ${game.rating}/5`} 
-                        variant="outlined" 
+                        label={game.status} 
+                        color={statusColors[game.status] || 'default'} 
                         size="small" 
-                        sx={{ borderColor: '#333' }}
+                        onClick={() => handleQuickStatusCycle(game)}
+                        sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                        title="Click to cycle status"
                       />
+                      {game.rating && (
+                        <Chip 
+                          label={`Rating: ${game.rating}/5`} 
+                          variant="outlined" 
+                          size="small" 
+                          sx={{ borderColor: '#333' }}
+                        />
                     )}
                   </Box>
 
                   <Typography variant="body2" color="text.secondary">
                     Hours Played: {game.hours_played || 0} hrs
                   </Typography>
+                  {game.notes && (
+                    <Typography variant="body2" sx={{ mt: 1.5, fontStyle: 'italic', color: 'text.secondary', backgroundColor: 'rgba(255,255,255,0.03)', p: 1, borderRadius: 1 }}>
+                      "{game.notes}"
+                    </Typography>
+                  )}  
                 </CardContent>
               </Card>
             </Grid>
@@ -366,6 +497,16 @@ export default function Dashboard() {
               inputProps={{ step: 0.5, min: 0 }}
               value={hoursPlayed}
               onChange={(e) => setHoursPlayed(e.target.value)}
+            />
+            <TextField
+              margin="dense"
+              label="Personal Notes / Mini-Review"
+              multiline
+              rows={2}
+              fullWidth
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              sx={{ mt: 2 }}
             />
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>

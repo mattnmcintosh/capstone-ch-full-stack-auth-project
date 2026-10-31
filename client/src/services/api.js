@@ -1,35 +1,43 @@
 import axios from 'axios';
 
+// Create an Axios instance pointing to your Flask API
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5555/api',
 });
 
-// Automatically attach JWT token to every request if available
+// Automatically attach the JWT token to every outgoing request header
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
-// Helper auth services
+// Authentication API Endpoints
+
 export const loginUser = async (credentials) => {
   const response = await API.post('/login', credentials);
-  localStorage.setItem('token', response.data.access_token);
-  localStorage.setItem('user', JSON.stringify(response.data.user));
+  if (response.data.access_token) {
+    localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+  }
   return response.data;
 };
 
 export const registerUser = async (userData) => {
-  const response = await API.post('/users', userData);
+  const response = await API.post('/register', userData);
   return response.data;
 };
 
 export const logoutUser = () => {
-  localStorage.removeItem('token');
+  localStorage.removeItem('access_token');
   localStorage.removeItem('user');
 };
+
+// Game API Endpoints
 
 export const getGames = async () => {
   const response = await API.get('/games');
